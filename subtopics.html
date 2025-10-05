@@ -1,16 +1,16 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>RWA — Subtopics / Files</title>
 <style>
   body{margin:0;background:linear-gradient(180deg,#04102a,#071428);color:#cfe7ff;font-family:Inter,system-ui;padding:18px}
   .wrap{max-width:1000px;margin:0 auto}
-  .item{background:#0b1b2a;padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;cursor:pointer}
+  .item{background:#0b1b2a;padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;cursor:pointer;align-items:center}
   .small{color:#9fb0c8}
   .back{color:#9fb0c8;text-decoration:none}
-  button{background:#0d2640;color:#9fd7ff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;transition:0.3s}
-  button:hover{background:#00b3ff;color:#fff}
+  button.small{background:#1f2a3a;color:#cfe7ff;border:none;padding:4px 8px;border-radius:6px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -25,6 +25,7 @@
     <div id="empty" class="small" style="display:none;margin-top:12px">No files found.</div>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
 (() => {
   const params = new URLSearchParams(window.location.search);
@@ -68,40 +69,104 @@
     }
   }
 
+  function openVideo(url,title){
+    if(!url) return alert('No video URL found.');
+    const w = window.open('', '_blank', 'width=900,height=600');
+    w.document.title = title;
+    w.document.body.innerHTML = `
+      <style>
+        body{margin:0;background:#071428;color:#cfe7ff;font-family:Inter,system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
+        #playerContainer{position:relative;width:90%;max-width:800px;background:black;border-radius:12px;}
+        video{width:100%;border-radius:12px;}
+        #controls{position:absolute;bottom:0;left:0;width:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;padding:6px;gap:8px;}
+        #playBtn, #fullscreenBtn{cursor:pointer;color:white;font-weight:bold;}
+        #volume{width:80px;}
+        #seek{flex:1;}
+        #time{color:white;font-size:12px;}
+      </style>
+      <div id="playerContainer">
+        <video id="video"></video>
+        <div id="controls">
+          <span id="playBtn">Play</span>
+          <input type="range" id="seek" min="0" value="0"/>
+          <span id="time">0:00 / 0:00</span>
+          <input type="range" id="volume" min="0" max="1" step="0.05" value="1"/>
+          <span id="fullscreenBtn">⛶</span>
+        </div>
+      </div>
+      <script>
+        const video = document.getElementById('video');
+        const playBtn = document.getElementById('playBtn');
+        const volume = document.getElementById('volume');
+        const seek = document.getElementById('seek');
+        const time = document.getElementById('time');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const url = "${url}";
+        if(Hls.isSupported()){
+          const hls = new Hls();
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED,function(){ video.play(); playBtn.textContent='Pause'; });
+        } else { video.src = url; video.addEventListener('loadedmetadata',()=>video.play()); }
+
+        playBtn.addEventListener('click', ()=>{ 
+          if(video.paused){ video.play(); playBtn.textContent='Pause'; } 
+          else { video.pause(); playBtn.textContent='Play'; }
+        });
+
+        volume.addEventListener('input', ()=>{ video.volume = volume.value; });
+        video.addEventListener('timeupdate', ()=>{
+          seek.value = video.currentTime;
+          const m = Math.floor(video.currentTime/60);
+          const s = Math.floor(video.currentTime%60).toString().padStart(2,'0');
+          const dm = Math.floor(video.duration/60);
+          const ds = Math.floor(video.duration%60).toString().padStart(2,'0');
+          time.textContent = \`\${m}:\${s} / \${dm}:\${ds}\`;
+        });
+        seek.addEventListener('input', ()=>{ video.currentTime = seek.value; });
+        video.addEventListener('loadedmetadata', ()=>{ seek.max = video.duration; });
+        fullscreenBtn.addEventListener('click', ()=>{ 
+          if(w.document.fullscreenElement) w.document.exitFullscreen(); 
+          else document.getElementById('playerContainer').requestFullscreen();
+        });
+      <\/script>
+    `;
+  }
+
   function render(items){
     list.innerHTML='';
     if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
     items.forEach((it, idx)=>{
       const id = it.id || it.video_id || it.content_id || '';
       const title = it.Title || it.title || it.file_name || it.name || `File ${idx+1}`;
-      const link1 = it.decrypted_pdf_link || it.decrypted_link || it.pdf_link || '';
-      const link2 = it.decrypted_pdf_link2 || '';
-      const el = document.createElement('div'); 
-      el.className='item';
-      el.innerHTML = `
-        <div>
-          <strong style="color:#eaf6ff">${title}</strong>
-          <div class="small">${id?('ID: '+id):''}</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button data-link="${link1}" class="openBtn small">Open</button>
-          <button data-id="${id}" data-title="${encodeURIComponent(title)}" class="masterBtn small">Master Video</button>
-        </div>`;
+      const link1 = it.primary_download_url || (it.qualities && it.qualities[0]?.url) || '';
+      const linkMaster = id ? `https://rwa-api-self.vercel.app/?token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}&course_id=${encodeURIComponent(course_id)}&video_id=${encodeURIComponent(id)}` : '';
 
-      // Open regular PDF link
-      el.querySelector('.openBtn').addEventListener('click', (e)=>{
-        const link = e.target.dataset.link;
-        if(link) window.open(link, '_blank');
-        else alert('No direct link found for this file.');
-      });
+      const el = document.createElement('div'); el.className='item';
+      el.innerHTML = `<div><strong style="color:#eaf6ff">${title}</strong><div class="small">${id?('id: '+id):''}</div></div>
+                      <div style="display:flex;gap:8px">
+                        <button class="small openBtn">Open</button>
+                        <button class="small masterBtn">Open master video</button>
+                      </div>`;
 
-      // Open master video in player.html
-      el.querySelector('.masterBtn').addEventListener('click', ()=>{
-        const vid = id;
-        if(!vid) return alert('No video ID found.');
-        if(!token || !userid) return alert('Token or UserID missing.');
-        const playerUrl = `player.html?id=${encodeURIComponent(vid)}&courseid=${encodeURIComponent(course_id)}&token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}`;
-        window.open(playerUrl, "_blank"); // open player in new tab
+      el.querySelector('.openBtn').addEventListener('click', ()=>openVideo(link1,title));
+
+      el.querySelector('.masterBtn').addEventListener('click', async ()=>{
+        if(!id || !token || !userid){
+          alert('Missing token/userid for master video.');
+          return;
+        }
+        try{
+          const res = await fetch(linkMaster, {cache:'no-cache'});
+          if(!res.ok) throw new Error('Network '+res.status);
+          const json = await res.json();
+          const masterUrl = json.primary_download_url || (json.qualities && json.qualities[0]?.url) || '';
+          if(!masterUrl) return alert('No master video URL found.');
+          openVideo(masterUrl, title+' (Master)');
+        }catch(err){
+          console.error(err);
+          alert('Failed to fetch master video.');
+        }
       });
 
       list.appendChild(el);
