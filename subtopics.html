@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RWA — Subtopics / Files</title>
+<style>
+  body{margin:0;background:linear-gradient(180deg,#04102a,#071428);color:#cfe7ff;font-family:Inter,system-ui;padding:18px}
+  .wrap{max-width:1000px;margin:0 auto}
+  .item{background:#0b1b2a;padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;cursor:pointer}
+  .small{color:#9fb0c8}
+  .back{color:#9fb0c8;text-decoration:none}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="display:flex;justify-content:space-between;align-items:center">
+      <a class="back" href="topics.html">&larr; Back</a>
+      <div>Files / Subtopics</div>
+    </header>
+
+    <div id="info" class="small" style="margin-top:8px"></div>
+    <div id="list" style="margin-top:12px"></div>
+    <div id="empty" class="small" style="display:none;margin-top:12px">No files found.</div>
+  </div>
+
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const course_id = params.get('course_id');
+  const subjectid = params.get('subjectid');
+  const topicid = params.get('topicid');
+  const token = params.get('token') || localStorage.getItem('rwa_token') || '';
+  const userid = params.get('userid') || localStorage.getItem('rwa_userid') || '';
+
+  if(!course_id || !subjectid || !topicid){
+    alert('Missing parameters. Open from previous pages.');
+    window.location.href = 'index.html';
+  }
+
+  const list = document.getElementById('list');
+  const info = document.getElementById('info');
+  const empty = document.getElementById('empty');
+
+  function buildHeaders(){
+    const h = {'Accept':'application/json','Accept-Encoding':'json','User-Agent':'okhttp/3.9.1','Auth-Key':'appxapi','Client-Service':'Appx','source':'website'};
+    if(token) h['Authorization'] = token;
+    return h;
+  }
+
+  async function fetchSubtopics(){
+    info.textContent = 'Loading files...';
+    try{
+      const url = `https://rozgarapinew.teachx.in/get/livecourseclassbycoursesubtopconceptapiv3?courseid=${encodeURIComponent(course_id)}&subjectid=${encodeURIComponent(subjectid)}&topicid=${encodeURIComponent(topicid)}&conceptid=&start=-1`;
+      const res = await fetch(url, {headers: buildHeaders(), cache:'no-cache'});
+      if(!res.ok) throw new Error('Network '+res.status);
+      const json = await res.json();
+      let arr = Array.isArray(json) ? json : (Array.isArray(json.data)?json.data:null);
+      if(!arr) for(const k in json) if(Array.isArray(json[k])) { arr = json[k]; break; }
+      if(!arr) arr = [];
+      render(arr);
+      info.textContent = `Loaded ${arr.length} file(s)`;
+    }catch(err){
+      console.error(err);
+      info.textContent = 'Failed to fetch files (CORS or network).';
+      alert('Could not load files. See console.');
+    }
+  }
+
+  function render(items){
+    list.innerHTML='';
+    if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
+    items.forEach((it, idx)=>{
+      // Example fields used by your Android code: id, Title, decrypted_pdf_link, decrypted_pdf_link2, thumbnail, subject
+      const id = it.id || it.video_id || it.content_id || '';
+      const title = it.Title || it.title || it.file_name || it.name || `File ${idx+1}`;
+      const thumb = it.thumbnail || it.image || '';
+      const link1 = it.decrypted_pdf_link || it.decrypted_link || it.pdf_link || '';
+      const link2 = it.decrypted_pdf_link2 || '';
+      const el = document.createElement('div'); el.className='item';
+      el.innerHTML = `<div><strong style="color:#eaf6ff">${title}</strong><div class="small">${id?('id: '+id):''}</div></div>
+                      <div style="display:flex;gap:8px">
+                        <button data-id="${id}" data-title="${encodeURIComponent(title)}" class="small openBtn">Open</button>
+                        <button data-id="${id}" class="small masterBtn">Open master video</button>
+                      </div>`;
+      // open file: We'll try to open decrypted_pdf_link in new tab if present, otherwise show raw JSON
+      el.querySelector('.openBtn').addEventListener('click', (e)=>{
+        e.preventDefault();
+        if(link1) {
+          // open link1 directly
+          window.open(link1, '_blank');
+        } else {
+          // show raw JSON in new tab
+          const w = window.open(); w.document.body.innerHTML = `<pre>${JSON.stringify(it,null,2)}</pre>`;
+        }
+      });
+
+      el.querySelector('.masterBtn').addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const vid = id;
+        if(!vid) return alert('No id for this file to fetch master video.');
+        // call master video endpoint as in your Android snippet:
+        // https://rwa-api-self.vercel.app/?token=TOKEN&userid=USERID&course_id=COURSE_ID&video_id=VID
+        if(!token || !userid) {
+          if(confirm('Token or userid missing. Open anyway to raw data? Press OK to open raw JSON.')) {
+            const w = window.open(); w.document.body.innerHTML = `<pre>${JSON.stringify(it,null,2)}</pre>`;
+          }
+          return;
+        }
+        const url = `https://rwa-api-self.vercel.app/?token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}&course_id=${encodeURIComponent(course_id)}&video_id=${encodeURIComponent(vid)}`;
+        try{
+          const res = await fetch(url, {cache:'no-cache'});
+          if(!res.ok) throw new Error('Network '+res.status);
+          const json = await res.json();
+          // open result in new tab for now
+          const w = window.open(); w.document.body.innerHTML = `<h3>Master video response:</h3><pre>${JSON.stringify(json,null,2)}</pre>`;
+        }catch(err){
+          console.error(err);
+          alert('Failed to fetch master video (CORS or network). Check console.');
+        }
+      });
+
+      list.appendChild(el);
+    });
+  }
+
+  fetchSubtopics();
+})();
+</script>
+</body>
+</html>
