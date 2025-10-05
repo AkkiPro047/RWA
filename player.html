@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RWA — Secure Video Player</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RWA — Smart Video Player</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css"/>
 <style>
   body {
@@ -19,7 +19,7 @@
   }
   h2 {
     text-align: center;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
     font-size: 18px;
     color: #eaf6ff;
   }
@@ -39,82 +39,85 @@
 <body>
   <h2 id="title">Loading...</h2>
   <div id="playerContainer">
-    <video id="video" class="plyr__video-embed" controls playsinline crossorigin="anonymous"></video>
+    <video id="video" controls playsinline crossorigin="anonymous"></video>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.js"></script>
   <script>
-    (function(){
+    (async function() {
       const params = new URLSearchParams(window.location.search);
-      const videoUrl = params.get('url');
+      const rawUrl = params.get('url');
       const title = params.get('title') || 'Video';
 
       const titleEl = document.getElementById('title');
       const videoEl = document.getElementById('video');
       titleEl.textContent = title;
 
-      if (!videoUrl) {
+      if (!rawUrl) {
         alert("Missing video URL");
         return;
       }
 
-      // Initialize Plyr (nice controls)
+      // Automatically use your Vercel proxy for CORS safety
+      const proxyBase = "https://rwa-eduverse.vercel.app/api/proxy?url=";
+      const videoUrl = proxyBase + encodeURIComponent(rawUrl);
+
+      // Initialize Plyr UI
       const player = new Plyr(videoEl, {
         controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
         seekTime: 10,
       });
 
-      // Try native HLS first (iOS Safari or Android Chrome sometimes supports)
+      // Try native playback first
       if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
         videoEl.src = videoUrl;
-        videoEl.addEventListener('loadedmetadata', () => {
-          console.log("Native HLS loaded.");
-        });
       } else if (Hls.isSupported()) {
         const hls = new Hls({
           maxBufferLength: 60,
           enableWorker: true,
           xhrSetup: function(xhr, url) {
-            xhr.withCredentials = false; // true if your token requires cookies
+            xhr.withCredentials = false;
           }
         });
         hls.loadSource(videoUrl);
         hls.attachMedia(videoEl);
 
-        // Log errors for debugging
-        hls.on(Hls.Events.ERROR, function (event, data) {
-          console.error("HLS.js error:", data);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log("Manifest loaded. Tap to play if needed.");
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error("HLS error:", data);
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.warn("Network error, trying to recover...");
+                console.warn("Network error — retrying...");
                 hls.startLoad();
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                console.warn("Media error, attempting recovery...");
+                console.warn("Media error — attempting recovery...");
                 hls.recoverMediaError();
                 break;
               default:
-                console.error("Unrecoverable error. Reloading...");
+                alert("Unrecoverable error. Reloading...");
                 location.reload();
-                break;
             }
           }
         });
       } else {
-        // Fallback
         videoEl.src = videoUrl;
       }
 
-      // Mobile user gesture play handling
+      // Mobile play permission
       document.addEventListener('click', () => {
         videoEl.play().catch(err => console.log("Play blocked:", err));
       }, { once: true });
 
+      // Catch video element errors
       videoEl.addEventListener('error', (e) => {
-        console.error("Video element error:", e);
-        alert("Playback error. Check CORS or URL expiry.");
+        console.error("Playback error:", e);
+        alert("Playback error — check token validity or proxy setup.");
       });
     })();
   </script>
