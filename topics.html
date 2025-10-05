@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RWA — Topics</title>
+<style>
+  :root{--card:#0b1b2a;--muted:#9fb0c8}
+  body{margin:0;background:linear-gradient(180deg,#04102a,#071428);padding:18px;color:var(--muted);font-family:Inter,system-ui}
+  .wrap{max-width:1000px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:center}
+  .list{margin-top:14px}
+  .item{background:var(--card);padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;cursor:pointer}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a href="subjects.html" style="color:var(--muted)">&larr; Back</a>
+      <div>Topics</div>
+    </header>
+
+    <div id="info" class="small" style="margin-top:8px"></div>
+    <div id="list" class="list"></div>
+    <div id="empty" class="small" style="display:none;margin-top:12px">No topics.</div>
+  </div>
+
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const course_id = params.get('course_id');
+  const subjectid = params.get('subjectid');
+  const token = params.get('token') || localStorage.getItem('rwa_token') || '';
+  const userid = params.get('userid') || localStorage.getItem('rwa_userid') || '';
+
+  if(!course_id || !subjectid){
+    alert('Missing course_id or subjectid');
+    window.location.href = 'index.html';
+  }
+
+  const list = document.getElementById('list');
+  const info = document.getElementById('info');
+  const empty = document.getElementById('empty');
+
+  function buildHeaders(){
+    const h = {'Accept':'application/json','Accept-Encoding':'json','User-Agent':'okhttp/3.9.1','Auth-Key':'appxapi','Client-Service':'Appx','source':'website'};
+    if(token) h['Authorization'] = token;
+    return h;
+  }
+
+  async function fetchTopics(){
+    info.textContent = 'Loading topics...';
+    try{
+      const url = `https://rozgarapinew.teachx.in/get/alltopicfrmlivecourseclass?courseid=${encodeURIComponent(course_id)}&subjectid=${encodeURIComponent(subjectid)}&start=-1`;
+      const res = await fetch(url, {headers: buildHeaders(), cache:'no-cache'});
+      if(!res.ok) throw new Error('Network '+res.status);
+      const json = await res.json();
+      let arr = Array.isArray(json) ? json : (Array.isArray(json.data)?json.data:null);
+      if(!arr) for(const k in json) if(Array.isArray(json[k])) { arr = json[k]; break; }
+      if(!arr) arr = [];
+      render(arr);
+      info.textContent = `Loaded ${arr.length} topic(s)`;
+    }catch(err){
+      console.error(err);
+      info.textContent = 'Failed to fetch topics (CORS or network).';
+      alert('Could not load topics. See console.');
+    }
+  }
+
+  function render(items){
+    list.innerHTML='';
+    if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
+    items.forEach(it=>{
+      // topic id may be "topicid" or "id"
+      const tid = it.topicid || it.id || it.topic_id || '';
+      const title = it.topic || it.topic_name || it.name || JSON.stringify(it);
+      const el = document.createElement('div'); el.className='item';
+      el.innerHTML = `<div><strong style="color:#e6f7ff">${title}</strong><div class="small">${tid?('id: '+tid):''}</div></div><div class="small">View subtopics</div>`;
+      el.addEventListener('click', ()=>{
+        const p = new URLSearchParams();
+        p.set('course_id', course_id);
+        if(subjectid) p.set('subjectid', subjectid);
+        if(tid) p.set('topicid', tid);
+        if(token) p.set('token', token);
+        if(userid) p.set('userid', userid);
+        window.location.href = 'subtopics.html?' + p.toString();
+      });
+      list.appendChild(el);
+    });
+  }
+
+  fetchTopics();
+})();
+</script>
+</body>
+</html>
