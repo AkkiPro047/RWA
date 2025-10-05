@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RWA Player</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    video {
+      width: 95%;
+      max-width: 900px;
+      margin-top: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+    }
+    .video-info {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .quality-select {
+      margin: 10px auto;
+      padding: 8px 15px;
+      border-radius: 8px;
+      background: #1e1e1e;
+      color: white;
+      border: 1px solid #444;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2 id="title"></h2>
+  <video id="videoPlayer" controls></video>
+  <select id="qualitySelect" class="quality-select"></select>
+  <div class="video-info">
+    <p id="date"></p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const videoId = params.get("id");
+    const courseId = params.get("courseid"); // optional, if needed
+    const player = document.getElementById("videoPlayer");
+    const title = document.getElementById("title");
+    const date = document.getElementById("date");
+    const qualitySelect = document.getElementById("qualitySelect");
+
+    async function loadVideo() {
+      try {
+        const response = await fetch(`https://rozgarapinew.teachx.in/get/videojson?videoid=${videoId}`);
+        const data = await response.json();
+
+        title.textContent = data.title;
+        date.textContent = data.date_and_time;
+
+        // Populate quality options
+        data.qualities.forEach(q => {
+          const option = document.createElement("option");
+          option.value = q.url;
+          option.textContent = q.quality;
+          qualitySelect.appendChild(option);
+        });
+
+        // Default to highest quality
+        playStream(data.qualities[0].url);
+
+        qualitySelect.addEventListener("change", (e) => {
+          playStream(e.target.value);
+        });
+
+      } catch (err) {
+        alert("Error loading video.");
+        console.error(err);
+      }
+    }
+
+    function playStream(url) {
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(player);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          player.play();
+        });
+      } else if (player.canPlayType("application/vnd.apple.mpegurl")) {
+        player.src = url;
+        player.play();
+      } else {
+        alert("Your browser doesn't support HLS streaming.");
+      }
+    }
+
+    loadVideo();
+  </script>
+</body>
+</html>
