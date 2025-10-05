@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RWA — Subjects</title>
+<style>
+  :root{--bg:#071428;--card:#0b1b2a;--muted:#9fb0c8;--accent:#6d28d9;color:#e6f0fb;font-family:Inter,system-ui,Arial}
+  body{margin:0;background:linear-gradient(180deg,#04102a,#071428);min-height:100vh;padding:20px}
+  .wrap{max-width:1000px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between}
+  .back{color:var(--muted);text-decoration:none}
+  .list{margin-top:16px}
+  .item{background:var(--card);padding:12px;border-radius:10px;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+  .small{color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div><a class="back" href="index.html">&larr; Back to batches</a></div>
+      <div class="small">Subjects</div>
+    </header>
+
+    <main>
+      <div id="info" class="small" style="margin-top:8px"></div>
+      <div id="list" class="list"></div>
+      <div id="empty" class="small" style="display:none;margin-top:12px">No subjects found.</div>
+    </main>
+  </div>
+
+<script>
+(() => {
+  // read params
+  const params = new URLSearchParams(window.location.search);
+  const course_id = params.get('course_id');
+  const token = params.get('token') || localStorage.getItem('rwa_token') || '';
+  const userid = params.get('userid') || localStorage.getItem('rwa_userid') || '';
+
+  const listEl = document.getElementById('list');
+  const info = document.getElementById('info');
+  const empty = document.getElementById('empty');
+
+  function showInfo(t){ info.textContent = t; }
+
+  if(!course_id){
+    alert('Missing course_id in query. Open this page from the batches list.');
+    window.location.href = 'index.html';
+  }
+
+  // build headers matching Android sample (some servers validate these)
+  function buildHeaders(){
+    const h = {
+      'Accept': 'application/json',
+      'Accept-Encoding': 'json',
+      'User-Agent': 'okhttp/3.9.1',
+      'Auth-Key': 'appxapi',
+      'Client-Service': 'Appx',
+      'source': 'website'
+    };
+    if(token) h['Authorization'] = token;
+    return h;
+  }
+
+  async function fetchSubjects(){
+    showInfo('Loading subjects...');
+    try {
+      const endpoint = `https://rozgarapinew.teachx.in/get/allsubjectfrmlivecourseclass?courseid=${encodeURIComponent(course_id)}&start=-1`;
+      const res = await fetch(endpoint, {headers: buildHeaders(), cache:'no-cache'});
+      if(!res.ok) throw new Error('Network '+res.status);
+      const json = await res.json();
+      // depending on API, subjects may be directly array or wrapped
+      let arr = Array.isArray(json) ? json : (Array.isArray(json.data) ? json.data : null);
+      if(!arr){
+        // try to detect first array inside object
+        for(const k in json) if(Array.isArray(json[k])) { arr = json[k]; break; }
+      }
+      if(!arr) arr = [];
+      render(arr);
+      showInfo(`Loaded ${arr.length} subject(s)`);
+    } catch(err){
+      console.error(err);
+      showInfo('Failed to fetch subjects (CORS or network).');
+      alert('Could not load subjects; check console for details.');
+    }
+  }
+
+  function render(items){
+    listEl.innerHTML = '';
+    if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
+    items.forEach(it=>{
+      // adapt to common fields: subject id may be "id" or "subjectid"
+      const sid = it.subjectid || it.id || it.subject_id || '';
+      const title = it.subject || it.subject_name || it.name || it.title || JSON.stringify(it);
+      const el = document.createElement('div'); el.className='item';
+      el.innerHTML = `<div><strong style="color:#e6f7ff">${title}</strong><div class="small">${sid ? 'id: '+sid : ''}</div></div><div class="small">View topics &raquo;</div>`;
+      el.addEventListener('click', ()=>{
+        const p = new URLSearchParams();
+        p.set('course_id', course_id);
+        if(sid) p.set('subjectid', sid);
+        if(token) p.set('token', token);
+        if(userid) p.set('userid', userid);
+        window.location.href = 'topics.html?' + p.toString();
+      });
+      listEl.appendChild(el);
+    });
+  }
+
+  fetchSubjects();
+})();
+</script>
+</body>
+                                                            </html>
