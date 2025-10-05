@@ -1,45 +1,122 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>RWA — Video Player</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RWA — Secure Video Player</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css"/>
 <style>
-  body{margin:0;background:#071428;color:#cfe7ff;font-family:Inter,system-ui;display:flex;flex-direction:column;align-items:center;padding:20px}
-  h2{margin-bottom:16px;text-align:center}
-  #videoContainer{width:100%;max-width:900px;}
-  video{width:100%;border-radius:12px;background:black}
+  body {
+    margin: 0;
+    background: #071428;
+    color: #cfe7ff;
+    font-family: Inter, system-ui;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px;
+    min-height: 100vh;
+  }
+  h2 {
+    text-align: center;
+    margin-bottom: 14px;
+    font-size: 18px;
+    color: #eaf6ff;
+  }
+  #playerContainer {
+    width: 100%;
+    max-width: 900px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  video {
+    width: 100%;
+    background: black;
+    border-radius: 12px;
+  }
 </style>
 </head>
 <body>
   <h2 id="title">Loading...</h2>
-  <div id="videoContainer">
-    <video id="video" controls></video>
+  <div id="playerContainer">
+    <video id="video" class="plyr__video-embed" controls playsinline crossorigin="anonymous"></video>
   </div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script>
-(() => {
-  const params = new URLSearchParams(window.location.search);
-  const videoUrl = params.get('url'); // direct m3u8 URL
-  const title = params.get('title') || 'Video';
-  
-  if(!videoUrl) return alert('Missing video URL');
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.js"></script>
+  <script>
+    (function(){
+      const params = new URLSearchParams(window.location.search);
+      const videoUrl = params.get('url');
+      const title = params.get('title') || 'Video';
 
-  document.getElementById('title').textContent = title;
+      const titleEl = document.getElementById('title');
+      const videoEl = document.getElementById('video');
+      titleEl.textContent = title;
 
-  const video = document.getElementById('video');
-  
-  if(Hls.isSupported()){
-    const hls = new Hls();
-    hls.loadSource(videoUrl);
-    hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-  } else {
-    video.src = videoUrl;
-    video.addEventListener('loadedmetadata', () => video.play());
-  }
-})();
-</script>
+      if (!videoUrl) {
+        alert("Missing video URL");
+        return;
+      }
+
+      // Initialize Plyr (nice controls)
+      const player = new Plyr(videoEl, {
+        controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+        seekTime: 10,
+      });
+
+      // Try native HLS first (iOS Safari or Android Chrome sometimes supports)
+      if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+        videoEl.src = videoUrl;
+        videoEl.addEventListener('loadedmetadata', () => {
+          console.log("Native HLS loaded.");
+        });
+      } else if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxBufferLength: 60,
+          enableWorker: true,
+          xhrSetup: function(xhr, url) {
+            xhr.withCredentials = false; // true if your token requires cookies
+          }
+        });
+        hls.loadSource(videoUrl);
+        hls.attachMedia(videoEl);
+
+        // Log errors for debugging
+        hls.on(Hls.Events.ERROR, function (event, data) {
+          console.error("HLS.js error:", data);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.warn("Network error, trying to recover...");
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.warn("Media error, attempting recovery...");
+                hls.recoverMediaError();
+                break;
+              default:
+                console.error("Unrecoverable error. Reloading...");
+                location.reload();
+                break;
+            }
+          }
+        });
+      } else {
+        // Fallback
+        videoEl.src = videoUrl;
+      }
+
+      // Mobile user gesture play handling
+      document.addEventListener('click', () => {
+        videoEl.play().catch(err => console.log("Play blocked:", err));
+      }, { once: true });
+
+      videoEl.addEventListener('error', (e) => {
+        console.error("Video element error:", e);
+        alert("Playback error. Check CORS or URL expiry.");
+      });
+    })();
+  </script>
 </body>
 </html>
