@@ -1,128 +1,115 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduVerse Player</title>
-  <link rel="icon" href="https://eduverse.logo.cdn" />
-  <style>
-    body {
-      background: #000;
-      margin: 0;
-      font-family: Poppins, sans-serif;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100vh;
-    }
-
-    #player-container {
-      width: 100%;
-      max-width: 900px;
-      position: relative;
-      margin-top: 20px;
-    }
-
-    video {
-      width: 100%;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0, 255, 120, 0.4);
-    }
-
-    #qualities {
-      margin-top: 12px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .btn {
-      background: #1e1e1e;
-      border: 1px solid #00ff80;
-      color: #00ff80;
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: 0.3s;
-    }
-
-    .btn:hover {
-      background: #00ff80;
-      color: #000;
-    }
-
-    h2 {
-      font-weight: 500;
-      margin-top: 15px;
-    }
-  </style>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RWA — Subtopics / Files</title>
+<style>
+  body{margin:0;background:linear-gradient(180deg,#04102a,#071428);color:#cfe7ff;font-family:Inter,system-ui;padding:18px}
+  .wrap{max-width:1000px;margin:0 auto}
+  .item{background:#0b1b2a;padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;cursor:pointer}
+  .small{color:#9fb0c8}
+  .back{color:#9fb0c8;text-decoration:none}
+  button{background:#0d2640;color:#9fd7ff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;transition:0.3s}
+  button:hover{background:#00b3ff;color:#fff}
+</style>
 </head>
 <body>
+  <div class="wrap">
+    <header style="display:flex;justify-content:space-between;align-items:center">
+      <a class="back" href="topics.html">&larr; Back</a>
+      <div>Files / Subtopics</div>
+    </header>
 
-  <h2 id="title">Loading Video...</h2>
-  <div id="player-container">
-    <video id="videoPlayer" controls playsinline></video>
+    <div id="info" class="small" style="margin-top:8px"></div>
+    <div id="list" style="margin-top:12px"></div>
+    <div id="empty" class="small" style="display:none;margin-top:12px">No files found.</div>
   </div>
-  <div id="qualities"></div>
 
-  <!-- hls.js -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script>
-    // Get JSON URL via query param (?src=...)
-    const params = new URLSearchParams(window.location.search);
-    const jsonUrl = params.get("src");
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const course_id = params.get('course_id');
+  const subjectid = params.get('subjectid');
+  const topicid = params.get('topicid');
+  const token = params.get('token') || localStorage.getItem('rwa_token') || '';
+  const userid = params.get('userid') || localStorage.getItem('rwa_userid') || '';
 
-    if (!jsonUrl) {
-      document.body.innerHTML = "<h2 style='color:red'>❌ Missing 'src' parameter!</h2>";
-      throw new Error("Missing 'src' parameter!");
+  if(!course_id || !subjectid || !topicid){
+    alert('Missing parameters. Open from previous pages.');
+    window.location.href = 'index.html';
+  }
+
+  const list = document.getElementById('list');
+  const info = document.getElementById('info');
+  const empty = document.getElementById('empty');
+
+  function buildHeaders(){
+    const h = {'Accept':'application/json','Accept-Encoding':'json','User-Agent':'okhttp/3.9.1','Auth-Key':'appxapi','Client-Service':'Appx','source':'website'};
+    if(token) h['Authorization'] = token;
+    return h;
+  }
+
+  async function fetchSubtopics(){
+    info.textContent = 'Loading files...';
+    try{
+      const url = `https://rozgarapinew.teachx.in/get/livecourseclassbycoursesubtopconceptapiv3?courseid=${encodeURIComponent(course_id)}&subjectid=${encodeURIComponent(subjectid)}&topicid=${encodeURIComponent(topicid)}&conceptid=&start=-1`;
+      const res = await fetch(url, {headers: buildHeaders(), cache:'no-cache'});
+      if(!res.ok) throw new Error('Network '+res.status);
+      const json = await res.json();
+      let arr = Array.isArray(json) ? json : (Array.isArray(json.data)?json.data:null);
+      if(!arr) for(const k in json) if(Array.isArray(json[k])) { arr = json[k]; break; }
+      if(!arr) arr = [];
+      render(arr);
+      info.textContent = `Loaded ${arr.length} file(s)`;
+    }catch(err){
+      console.error(err);
+      info.textContent = 'Failed to fetch files (CORS or network).';
+      alert('Could not load files. See console.');
     }
+  }
 
-    async function loadVideoData() {
-      try {
-        const res = await fetch(jsonUrl);
-        const data = await res.json();
-        console.log(data);
+  function render(items){
+    list.innerHTML='';
+    if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
+    items.forEach((it, idx)=>{
+      const id = it.id || it.video_id || it.content_id || '';
+      const title = it.Title || it.title || it.file_name || it.name || `File ${idx+1}`;
+      const link1 = it.decrypted_pdf_link || it.decrypted_link || it.pdf_link || '';
+      const link2 = it.decrypted_pdf_link2 || '';
+      const el = document.createElement('div'); 
+      el.className='item';
+      el.innerHTML = `
+        <div>
+          <strong style="color:#eaf6ff">${title}</strong>
+          <div class="small">${id?('ID: '+id):''}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button data-link="${link1}" class="openBtn small">Open</button>
+          <button data-id="${id}" data-title="${encodeURIComponent(title)}" class="masterBtn small">Master Video</button>
+        </div>`;
 
-        // Update title
-        document.getElementById("title").innerText = data.title || "Video";
+      // Open regular PDF link
+      el.querySelector('.openBtn').addEventListener('click', (e)=>{
+        const link = e.target.dataset.link;
+        if(link) window.open(link, '_blank');
+        else alert('No direct link found for this file.');
+      });
 
-        const video = document.getElementById("videoPlayer");
-        const hls = new Hls();
+      // Open master video in player.html
+      el.querySelector('.masterBtn').addEventListener('click', ()=>{
+        const vid = id;
+        if(!vid) return alert('No video ID found.');
+        if(!token || !userid) return alert('Token or UserID missing.');
+        const playerUrl = `player.html?id=${encodeURIComponent(vid)}&courseid=${encodeURIComponent(course_id)}&token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}`;
+        window.open(playerUrl, "_blank"); // open player in new tab
+      });
 
-        // Default source (720p)
-        let currentUrl = data.primary_download_url;
-        hls.loadSource(currentUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play();
-        });
+      list.appendChild(el);
+    });
+  }
 
-        // Quality buttons
-        const qualityContainer = document.getElementById("qualities");
-        qualityContainer.innerHTML = "";
-
-        data.qualities.forEach(q => {
-          const btn = document.createElement("button");
-          btn.className = "btn";
-          btn.innerText = q.quality;
-          btn.onclick = () => {
-            hls.loadSource(q.url);
-            hls.attachMedia(video);
-            video.play();
-          };
-          qualityContainer.appendChild(btn);
-        });
-
-      } catch (err) {
-        console.error("Video load error:", err);
-        document.body.innerHTML = "<h2 style='color:red'>⚠️ Failed to load video data</h2>";
-      }
-    }
-
-    loadVideoData();
-  </script>
+  fetchSubtopics();
+})();
+</script>
 </body>
 </html>
