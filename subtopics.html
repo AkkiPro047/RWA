@@ -9,6 +9,8 @@
   .item{background:#0b1b2a;padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;cursor:pointer}
   .small{color:#9fb0c8}
   .back{color:#9fb0c8;text-decoration:none}
+  button{background:#0d2640;color:#9fd7ff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;transition:0.3s}
+  button:hover{background:#00b3ff;color:#fff}
 </style>
 </head>
 <body>
@@ -70,53 +72,36 @@
     list.innerHTML='';
     if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
     items.forEach((it, idx)=>{
-      // Example fields used by your Android code: id, Title, decrypted_pdf_link, decrypted_pdf_link2, thumbnail, subject
       const id = it.id || it.video_id || it.content_id || '';
       const title = it.Title || it.title || it.file_name || it.name || `File ${idx+1}`;
-      const thumb = it.thumbnail || it.image || '';
       const link1 = it.decrypted_pdf_link || it.decrypted_link || it.pdf_link || '';
       const link2 = it.decrypted_pdf_link2 || '';
-      const el = document.createElement('div'); el.className='item';
-      el.innerHTML = `<div><strong style="color:#eaf6ff">${title}</strong><div class="small">${id?('id: '+id):''}</div></div>
-                      <div style="display:flex;gap:8px">
-                        <button data-id="${id}" data-title="${encodeURIComponent(title)}" class="small openBtn">Open</button>
-                        <button data-id="${id}" class="small masterBtn">Open master video</button>
-                      </div>`;
-      // open file: We'll try to open decrypted_pdf_link in new tab if present, otherwise show raw JSON
+      const el = document.createElement('div'); 
+      el.className='item';
+      el.innerHTML = `
+        <div>
+          <strong style="color:#eaf6ff">${title}</strong>
+          <div class="small">${id?('ID: '+id):''}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button data-link="${link1}" class="openBtn small">Open</button>
+          <button data-id="${id}" data-title="${encodeURIComponent(title)}" class="masterBtn small">Master Video</button>
+        </div>`;
+
+      // Open regular PDF link
       el.querySelector('.openBtn').addEventListener('click', (e)=>{
-        e.preventDefault();
-        if(link1) {
-          // open link1 directly
-          window.open(link1, '_blank');
-        } else {
-          // show raw JSON in new tab
-          const w = window.open(); w.document.body.innerHTML = `<pre>${JSON.stringify(it,null,2)}</pre>`;
-        }
+        const link = e.target.dataset.link;
+        if(link) window.open(link, '_blank');
+        else alert('No direct link found for this file.');
       });
 
-      el.querySelector('.masterBtn').addEventListener('click', async (e)=>{
-        e.preventDefault();
+      // Open master video in player.html
+      el.querySelector('.masterBtn').addEventListener('click', ()=>{
         const vid = id;
-        if(!vid) return alert('No id for this file to fetch master video.');
-        // call master video endpoint as in your Android snippet:
-        // https://rwa-api-self.vercel.app/?token=TOKEN&userid=USERID&course_id=COURSE_ID&video_id=VID
-        if(!token || !userid) {
-          if(confirm('Token or userid missing. Open anyway to raw data? Press OK to open raw JSON.')) {
-            const w = window.open(); w.document.body.innerHTML = `<pre>${JSON.stringify(it,null,2)}</pre>`;
-          }
-          return;
-        }
-        const url = `https://rwa-api-self.vercel.app/?token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}&course_id=${encodeURIComponent(course_id)}&video_id=${encodeURIComponent(vid)}`;
-        try{
-          const res = await fetch(url, {cache:'no-cache'});
-          if(!res.ok) throw new Error('Network '+res.status);
-          const json = await res.json();
-          // open result in new tab for now
-          const w = window.open(); w.document.body.innerHTML = `<h3>Master video response:</h3><pre>${JSON.stringify(json,null,2)}</pre>`;
-        }catch(err){
-          console.error(err);
-          alert('Failed to fetch master video (CORS or network). Check console.');
-        }
+        if(!vid) return alert('No video ID found.');
+        if(!token || !userid) return alert('Token or UserID missing.');
+        const playerUrl = `player.html?id=${encodeURIComponent(vid)}&courseid=${encodeURIComponent(course_id)}&token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}`;
+        window.open(playerUrl, "_blank"); // open player in new tab
       });
 
       list.appendChild(el);
