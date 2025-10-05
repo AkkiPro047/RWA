@@ -1,114 +1,44 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>RWA — Subtopics / Files</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RWA — Video Player</title>
 <style>
-  body{margin:0;background:linear-gradient(180deg,#04102a,#071428);color:#cfe7ff;font-family:Inter,system-ui;padding:18px}
-  .wrap{max-width:1000px;margin:0 auto}
-  .item{background:#0b1b2a;padding:12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;cursor:pointer}
-  .small{color:#9fb0c8}
-  .back{color:#9fb0c8;text-decoration:none}
-  button{background:#0d2640;color:#9fd7ff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;transition:0.3s}
-  button:hover{background:#00b3ff;color:#fff}
+  body{margin:0;background:#071428;color:#cfe7ff;font-family:Inter,system-ui;display:flex;flex-direction:column;align-items:center;padding:20px}
+  h2{margin-bottom:16px;text-align:center}
+  #videoContainer{width:100%;max-width:900px;}
+  video{width:100%;border-radius:12px;background:black}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header style="display:flex;justify-content:space-between;align-items:center">
-      <a class="back" href="topics.html">&larr; Back</a>
-      <div>Files / Subtopics</div>
-    </header>
-
-    <div id="info" class="small" style="margin-top:8px"></div>
-    <div id="list" style="margin-top:12px"></div>
-    <div id="empty" class="small" style="display:none;margin-top:12px">No files found.</div>
+  <h2 id="title">Loading...</h2>
+  <div id="videoContainer">
+    <video id="video" controls></video>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
 (() => {
   const params = new URLSearchParams(window.location.search);
-  const course_id = params.get('course_id');
-  const subjectid = params.get('subjectid');
-  const topicid = params.get('topicid');
-  const token = params.get('token') || localStorage.getItem('rwa_token') || '';
-  const userid = params.get('userid') || localStorage.getItem('rwa_userid') || '';
+  const videoUrl = params.get('url'); // direct m3u8 URL
+  const title = params.get('title') || 'Video';
+  
+  if(!videoUrl) return alert('Missing video URL');
 
-  if(!course_id || !subjectid || !topicid){
-    alert('Missing parameters. Open from previous pages.');
-    window.location.href = 'index.html';
+  document.getElementById('title').textContent = title;
+
+  const video = document.getElementById('video');
+  
+  if(Hls.isSupported()){
+    const hls = new Hls();
+    hls.loadSource(videoUrl);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+  } else {
+    video.src = videoUrl;
+    video.addEventListener('loadedmetadata', () => video.play());
   }
-
-  const list = document.getElementById('list');
-  const info = document.getElementById('info');
-  const empty = document.getElementById('empty');
-
-  function buildHeaders(){
-    const h = {'Accept':'application/json','Accept-Encoding':'json','User-Agent':'okhttp/3.9.1','Auth-Key':'appxapi','Client-Service':'Appx','source':'website'};
-    if(token) h['Authorization'] = token;
-    return h;
-  }
-
-  async function fetchSubtopics(){
-    info.textContent = 'Loading files...';
-    try{
-      const url = `https://rozgarapinew.teachx.in/get/livecourseclassbycoursesubtopconceptapiv3?courseid=${encodeURIComponent(course_id)}&subjectid=${encodeURIComponent(subjectid)}&topicid=${encodeURIComponent(topicid)}&conceptid=&start=-1`;
-      const res = await fetch(url, {headers: buildHeaders(), cache:'no-cache'});
-      if(!res.ok) throw new Error('Network '+res.status);
-      const json = await res.json();
-      let arr = Array.isArray(json) ? json : (Array.isArray(json.data)?json.data:null);
-      if(!arr) for(const k in json) if(Array.isArray(json[k])) { arr = json[k]; break; }
-      if(!arr) arr = [];
-      render(arr);
-      info.textContent = `Loaded ${arr.length} file(s)`;
-    }catch(err){
-      console.error(err);
-      info.textContent = 'Failed to fetch files (CORS or network).';
-      alert('Could not load files. See console.');
-    }
-  }
-
-  function render(items){
-    list.innerHTML='';
-    if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
-    items.forEach((it, idx)=>{
-      const id = it.id || it.video_id || it.content_id || '';
-      const title = it.Title || it.title || it.file_name || it.name || `File ${idx+1}`;
-      const link1 = it.decrypted_pdf_link || it.decrypted_link || it.pdf_link || '';
-      const link2 = it.decrypted_pdf_link2 || '';
-      const el = document.createElement('div'); 
-      el.className='item';
-      el.innerHTML = `
-        <div>
-          <strong style="color:#eaf6ff">${title}</strong>
-          <div class="small">${id?('ID: '+id):''}</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button data-link="${link1}" class="openBtn small">Open</button>
-          <button data-id="${id}" data-title="${encodeURIComponent(title)}" class="masterBtn small">Master Video</button>
-        </div>`;
-
-      // Open regular PDF link
-      el.querySelector('.openBtn').addEventListener('click', (e)=>{
-        const link = e.target.dataset.link;
-        if(link) window.open(link, '_blank');
-        else alert('No direct link found for this file.');
-      });
-
-      // Open master video in player.html
-      el.querySelector('.masterBtn').addEventListener('click', ()=>{
-        const vid = id;
-        if(!vid) return alert('No video ID found.');
-        if(!token || !userid) return alert('Token or UserID missing.');
-        const playerUrl = `player.html?id=${encodeURIComponent(vid)}&courseid=${encodeURIComponent(course_id)}&token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}`;
-        window.open(playerUrl, "_blank"); // open player in new tab
-      });
-
-      list.appendChild(el);
-    });
-  }
-
-  fetchSubtopics();
 })();
 </script>
 </body>
