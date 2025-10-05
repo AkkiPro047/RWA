@@ -25,7 +25,6 @@
     <div id="empty" class="small" style="display:none;margin-top:12px">No files found.</div>
   </div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
 (() => {
   const params = new URLSearchParams(window.location.search);
@@ -69,70 +68,6 @@
     }
   }
 
-  function openVideo(url,title){
-    if(!url) return alert('No video URL found.');
-    const w = window.open('', '_blank', 'width=900,height=600');
-    w.document.title = title;
-    w.document.body.innerHTML = `
-      <style>
-        body{margin:0;background:#071428;color:#cfe7ff;font-family:Inter,system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
-        #playerContainer{position:relative;width:90%;max-width:800px;background:black;border-radius:12px;}
-        video{width:100%;border-radius:12px;}
-        #controls{position:absolute;bottom:0;left:0;width:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;padding:6px;gap:8px;}
-        #playBtn, #fullscreenBtn{cursor:pointer;color:white;font-weight:bold;}
-        #volume{width:80px;}
-        #seek{flex:1;}
-        #time{color:white;font-size:12px;}
-      </style>
-      <div id="playerContainer">
-        <video id="video"></video>
-        <div id="controls">
-          <span id="playBtn">Play</span>
-          <input type="range" id="seek" min="0" value="0"/>
-          <span id="time">0:00 / 0:00</span>
-          <input type="range" id="volume" min="0" max="1" step="0.05" value="1"/>
-          <span id="fullscreenBtn">⛶</span>
-        </div>
-      </div>
-      <script>
-        const video = document.getElementById('video');
-        const playBtn = document.getElementById('playBtn');
-        const volume = document.getElementById('volume');
-        const seek = document.getElementById('seek');
-        const time = document.getElementById('time');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
-        const url = "${url}";
-        if(Hls.isSupported()){
-          const hls = new Hls();
-          hls.loadSource(url);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED,function(){ video.play(); playBtn.textContent='Pause'; });
-        } else { video.src = url; video.addEventListener('loadedmetadata',()=>video.play()); }
-
-        playBtn.addEventListener('click', ()=>{ 
-          if(video.paused){ video.play(); playBtn.textContent='Pause'; } 
-          else { video.pause(); playBtn.textContent='Play'; }
-        });
-
-        volume.addEventListener('input', ()=>{ video.volume = volume.value; });
-        video.addEventListener('timeupdate', ()=>{
-          seek.value = video.currentTime;
-          const m = Math.floor(video.currentTime/60);
-          const s = Math.floor(video.currentTime%60).toString().padStart(2,'0');
-          const dm = Math.floor(video.duration/60);
-          const ds = Math.floor(video.duration%60).toString().padStart(2,'0');
-          time.textContent = \`\${m}:\${s} / \${dm}:\${ds}\`;
-        });
-        seek.addEventListener('input', ()=>{ video.currentTime = seek.value; });
-        video.addEventListener('loadedmetadata', ()=>{ seek.max = video.duration; });
-        fullscreenBtn.addEventListener('click', ()=>{ 
-          if(w.document.fullscreenElement) w.document.exitFullscreen(); 
-          else document.getElementById('playerContainer').requestFullscreen();
-        });
-      <\/script>
-    `;
-  }
-
   function render(items){
     list.innerHTML='';
     if(!items.length){ empty.style.display='block'; return; } else empty.style.display='none';
@@ -142,15 +77,27 @@
       const link1 = it.primary_download_url || (it.qualities && it.qualities[0]?.url) || '';
       const linkMaster = id ? `https://rwa-api-self.vercel.app/?token=${encodeURIComponent(token)}&userid=${encodeURIComponent(userid)}&course_id=${encodeURIComponent(course_id)}&video_id=${encodeURIComponent(id)}` : '';
 
-      const el = document.createElement('div'); el.className='item';
-      el.innerHTML = `<div><strong style="color:#eaf6ff">${title}</strong><div class="small">${id?('id: '+id):''}</div></div>
+      const el = document.createElement('div'); 
+      el.className='item';
+      el.innerHTML = `<div>
+                        <strong style="color:#eaf6ff">${title}</strong>
+                        <div class="small">${id?('id: '+id):''}</div>
+                      </div>
                       <div style="display:flex;gap:8px">
                         <button class="small openBtn">Open</button>
                         <button class="small masterBtn">Open master video</button>
                       </div>`;
 
-      el.querySelector('.openBtn').addEventListener('click', ()=>openVideo(link1,title));
+      // OPEN button
+      el.querySelector('.openBtn').addEventListener('click', ()=>{
+        if(!link1) return alert('No video URL found.');
+        const p = new URLSearchParams();
+        p.set('url', link1);
+        p.set('title', title);
+        window.location.href = 'player.html?' + p.toString();
+      });
 
+      // OPEN MASTER VIDEO button
       el.querySelector('.masterBtn').addEventListener('click', async ()=>{
         if(!id || !token || !userid){
           alert('Missing token/userid for master video.');
@@ -162,7 +109,10 @@
           const json = await res.json();
           const masterUrl = json.primary_download_url || (json.qualities && json.qualities[0]?.url) || '';
           if(!masterUrl) return alert('No master video URL found.');
-          openVideo(masterUrl, title+' (Master)');
+          const p = new URLSearchParams();
+          p.set('url', masterUrl);
+          p.set('title', title + ' (Master)');
+          window.location.href = 'player.html?' + p.toString();
         }catch(err){
           console.error(err);
           alert('Failed to fetch master video.');
