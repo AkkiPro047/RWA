@@ -1,214 +1,230 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>RWA — Batches</title>
-<style>
-  :root{--bg:#071428;--card:#0b1b2a;--muted:#9fb0c8;--accent:#6d28d9;color:#e6f0fb;font-family:Inter,system-ui,Arial}
-  body{margin:0;background:linear-gradient(180deg,#04102a,#071428);min-height:100vh;padding:22px;color:var(--muted)}
-  .wrap{max-width:1100px;margin:0 auto}
-  header{display:flex;justify-content:space-between;align-items:center;gap:12px}
-  .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:800}
-  h1{margin:0;color:#e6f7ff}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-  input,select,button{padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
-  .btn{background:linear-gradient(90deg,#34d399,#06b6d4);border:0;color:#04242b;font-weight:700;cursor:pointer}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
-  @media(max-width:960px){.grid{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:640px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--card);padding:12px;border-radius:12px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;border:1px solid rgba(255,255,255,0.03)}
-  .thumb{width:120px;height:72px;border-radius:8px;object-fit:cover;background:#021427}
-  .meta{flex:1}
-  .title{font-weight:700;color:#e9f1ff;margin:0 0 6px 0}
-  .small{color:var(--muted);font-size:13px}
-  .badge{background:rgba(255,255,255,0.03);padding:6px;border-radius:8px;color:var(--muted);font-size:12px;margin-right:6px}
-  .topbar{display:flex;gap:8px;align-items:center}
-  .tokenBox{display:flex;gap:8px;align-items:center}
-</style>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+  <title>Real RWA — Demo</title>
+  <style>
+    :root{--accent:#0f6efd;--bg:#f7f9fc;--card:#ffffff;--muted:#6b7280}
+    *{box-sizing:border-box;font-family:Inter,Segoe UI,Arial,sans-serif}
+    body{margin:0;background:var(--bg);color:#111}
+    .container{max-width:1100px;margin:28px auto;padding:18px}
+    header{display:flex;align-items:center;justify-content:space-between}
+    .brand{display:flex;gap:12px;align-items:center}
+    .brand h1{margin:0;font-size:20px}
+    nav a{margin-left:12px;text-decoration:none;color:var(--muted)}
+    .hero{background:linear-gradient(90deg,rgba(15,110,253,0.06),transparent);padding:18px;border-radius:12px;margin-top:14px}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:18px}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 4px 14px rgba(12,20,30,0.04)}
+    .small{font-size:13px;color:var(--muted)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;text-align:left;border-bottom:1px solid #efeff5}
+    .btn{display:inline-block;padding:8px 12px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none}
+    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+    .danger{background:#fff7f6;border:1px solid #ffd6d0}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="container">
     <header>
-      <div style="display:flex;gap:12px;align-items:center">
-        <div class="logo">R</div>
+      <div class="brand">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" aria-hidden><rect width="24" height="24" rx="6" fill="#0f6efd"/><path d="M6 12h12" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div>
-          <h1>RWA — Batches</h1>
-          <div class="small">Loads courses from rwa-batches-api.vercel.app</div>
+          <h1>Real RWA — Demo</h1>
+          <div class="small">Admin Dashboard • Community Portal</div>
         </div>
       </div>
-
-      <div class="topbar">
-        <div class="tokenBox small">
-          Token: <input id="tokenInput" placeholder="Paste token (optional)" style="min-width:180px"/>
-          UserID: <input id="useridInput" placeholder="userid (optional)" style="min-width:90px"/>
-          <button id="saveCred" class="btn">Save</button>
-        </div>
-      </div>
+      <nav>
+        <a href="#home">Home</a>
+        <a href="#notices">Notices</a>
+        <a href="#residents">Residents</a>
+        <a href="#complaints">Complaints</a>
+        <a href="#docs">Documents</a>
+        <a class="btn" id="loginBtn">Admin</a>
+      </nav>
     </header>
 
-    <div class="controls">
-      <input id="q" placeholder="Search by name, category..." style="min-width:260px"/>
-      <select id="category"><option value="">All categories</option></select>
-      <select id="paid"><option value="">All</option><option value="paid">Paid</option><option value="free">Free</option></select>
-      <button id="refresh" class="btn">Refresh</button>
-      <div id="status" class="small" style="margin-left:auto"></div>
+    <section class="hero card" id="home">
+      <strong>Security notice:</strong> We detected possible proxying or embedding. Scroll down for details and actions. This page is a deployable demo. Replace sample data with your real data on the server only.
+    </section>
+
+    <div class="grid">
+      <main>
+        <section class="card" id="notices">
+          <h2 style="margin-top:0">Notices & Announcements</h2>
+          <p class="small">Manage notices from the admin panel. This demo stores data locally — in production, use server-side storage only.</p>
+          <table id="noticeTable" aria-live="polite">
+            <thead><tr><th>Date</th><th>Title</th><th>Action</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div style="margin-top:10px">
+            <input id="noticeTitle" placeholder="New notice title" style="padding:8px;border-radius:6px;border:1px solid #e6e9ef;width:60%">
+            <button class="btn" onclick="addNotice()">Add</button>
+            <button style="margin-left:8px;padding:8px;border-radius:6px" onclick="clearNotices()">Clear (demo)</button>
+          </div>
+        </section>
+
+        <section class="card" id="residents" style="margin-top:14px">
+          <h2 style="margin-top:0">Residents Directory</h2>
+          <p class="small">Sample directory (client-side). In production: authenticate and serve via API with access controls.</p>
+          <table id="resTable"><thead><tr><th>Name</th><th>Flat</th><th>Phone</th></tr></thead><tbody></tbody></table>
+        </section>
+
+        <section class="card" id="complaints" style="margin-top:14px">
+          <h2 style="margin-top:0">Register Complaint</h2>
+          <form onsubmit="submitComplaint(event)">
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input id="cname" required placeholder="Your name" style="flex:1;padding:8px;border-radius:6px;border:1px solid #e6e9ef">
+              <input id="cflat" required placeholder="Flat no." style="width:120px;padding:8px;border-radius:6px;border:1px solid #e6e9ef">
+            </div>
+            <textarea id="cdesc" required placeholder="Describe issue" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e6e9ef;height:88px"></textarea>
+            <div style="margin-top:8px"><button class="btn">Send</button></div>
+          </form>
+          <div id="complaintsList" style="margin-top:12px"></div>
+        </section>
+
+        <section class="card" id="docs" style="margin-top:14px">
+          <h2 style="margin-top:0">Documents</h2>
+          <p class="small">Upload documents to server with authentication. Do not store sensitive documents in public buckets without ACLs.</p>
+          <ul id="docList"><li>Society Bye-laws.pdf (sample)</li></ul>
+        </section>
+      </main>
+
+      <aside>
+        <div class="card danger" id="embedWarning">
+          <h3 style="margin-top:0">Proxy / Embedding checks</h3>
+          <div id="proxyChecks" class="small">Running checks...</div>
+          <div style="margin-top:8px"><a class="btn" id="takeAction">Recommended Actions</a></div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <h3 style="margin-top:0">Quick Links</h3>
+          <ul class="small">
+            <li>Block unknown Host headers</li>
+            <li>Enable HSTS and HTTPS everywhere</li>
+            <li>Rate-limit and CAPTCHA for forms</li>
+          </ul>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <h3 style="margin-top:0">Deploy</h3>
+          <p class="small">This is a static demo. For real deployment, host on your server and implement server-side checks listed below.</p>
+        </div>
+      </aside>
     </div>
 
-    <main>
-      <div id="grid" class="grid"></div>
-      <div id="empty" class="small" style="display:none;margin-top:18px">No batches found.</div>
-    </main>
+    <footer>
+      Real RWA Demo — generated for admin testing. Replace demo code with server-side implementations before using in production.
+    </footer>
   </div>
 
-<script>
-(() => {
-  const API = "https://rwa-batches-api.vercel.app/";
-  const tokenKey = 'rwa_token', uidKey='rwa_userid';
+  <!-- Admin modal (demo) -->
+  <div id="adminModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center">
+    <div style="background:#fff;padding:16px;border-radius:10px;max-width:420px;margin:auto">
+      <h3 style="margin-top:0">Admin Login (demo)</h3>
+      <input id="adminUser" placeholder="username" style="width:100%;padding:8px;margin-bottom:8px;border:1px solid #e6e9ef;border-radius:6px">
+      <input id="adminPass" placeholder="password" type="password" style="width:100%;padding:8px;margin-bottom:8px;border:1px solid #e6e9ef;border-radius:6px">
+      <div style="text-align:right">
+        <button onclick="closeModal()" style="margin-right:8px;padding:8px;border-radius:6px">Close</button>
+        <button class="btn" onclick="demoLogin()">Login</button>
+      </div>
+    </div>
+  </div>
 
-  const tokenInput = document.getElementById('tokenInput');
-  const useridInput = document.getElementById('useridInput');
-  const saveBtn = document.getElementById('saveCred');
+  <script>
+    // === Demo data (client-side only) ===
+    // Replace with your real production host (do NOT deploy demo with client-side secrets)
+    const expectedHost = 'your-rwa-domain.example'; // <-- replace on deploy
 
-  // prefill from localStorage
-  tokenInput.value = localStorage.getItem(tokenKey) || '';
-  useridInput.value = localStorage.getItem(uidKey) || '';
+    // Known proxy/leak indicators provided by admin (used for local checks only)
+    const proxyIndicators = {
+      proxyHosts: ['studyverserwaproxy.vercel.app','rozgarapinew.teachx.in','video-proxy.example'],
+      apiHost: 'https://rozgarapinew.teachx.in',
+      apiEndpoints: {
+        folderContents: '/get/folder_contentsv2?course_id={course_id}&parent_id={folder_id}',
+        videoDetails: '/get/fetchVideoDetailsById?course_id={course_id}&folder_wise_course=1&ytflag=0&video_id={fi}'
+      },
+      demoToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6Ijc5ODczNTQiLCJlbWFpbCI6InNhbmp1c2hhcm1hMjg2OEBnbWFpbC5jb20iLCJ0aW1lc3RhbXAiOjE3NDQxODA4ODgsInRlbmFudFR5cGUiOiJ1c2VyIiwidGVuYW50TmFtZSI6IiIsInRlbmFudElkIjoiIiwiZGlzcG9zYWJsZSI6ZmFsc2V9.E52O1aHYB8v3y8rx6EfSViMhCDriFOFofhCAW39molo'
+    };
 
-  saveBtn.addEventListener('click', ()=>{
-    localStorage.setItem(tokenKey, tokenInput.value.trim());
-    localStorage.setItem(uidKey, useridInput.value.trim());
-    alert('Saved token/userid to localStorage.');
-  });
-
-  const q = document.getElementById('q');
-  const category = document.getElementById('category');
-  const paid = document.getElementById('paid');
-  const refresh = document.getElementById('refresh');
-  const grid = document.getElementById('grid');
-  const status = document.getElementById('status');
-  const empty = document.getElementById('empty');
-
-  let data = [];
-
-  function showStatus(t){ status.textContent = t || ''; }
-
-  function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
-
-  function isPaid(item){
-    const p = Number(item.price || 0);
-    if(item.is_paid !== undefined) {
-      // could be "1" or numeric
-      return String(item.is_paid) === "1" || p>0;
+    // Server-side note: do not rely on client-side checks for blocking proxies — use the server scripts included in the admin guide below.
+    
+    // Helper: quick client-side hint if we're being served from a known proxy hostname
+    function checkKnownProxyHosts(){
+      const host = location.hostname;
+      return proxyIndicators.proxyHosts.includes(host);
     }
-    return p>0;
-  }
 
-  function buildCategories(items){
-    const set = new Set();
-    items.forEach(it => {
-      const c = (it.exam_category || it.exam_name || '').trim();
-      if(c) set.add(c);
-    });
-    // clear and add
-    category.innerHTML = '<option value="">All categories</option>';
-    Array.from(set).sort().forEach(v=>{
-      const o = document.createElement('option'); o.value = v; o.textContent = v; category.appendChild(o);
-    });
-  }
+    const sampleNotices = [
+      {date:'2025-10-10',title:'Speed upgrade and security patch applied'},
+      {date:'2025-09-30',title:'Annual general meeting announced'}
+    ];
+    const sampleResidents = [
+      {name:'Asha R.',flat:'A-101',phone:'98765 43210'},
+      {name:'Vikram S.',flat:'B-204',phone:'91234 56789'}
+    ];
 
-  function render(items){
-    grid.innerHTML = '';
-    if(!items.length){ empty.style.display='block'; return;} else empty.style.display='none';
-    items.forEach(it=>{
-      const card = document.createElement('article'); card.className = 'card';
-      const thumb = it.course_thumbnail || it.course_image || it.course_logo || 'https://placehold.co/560x360?text=No+Image';
-      const title = it.course_name || it.title || 'Untitled';
-      const cat = it.exam_category || it.exam_name || '';
-      const start = it.start_date || '';
-      const price = it.price || '0';
-      const paidTag = isPaid(it) ? 'Paid' : 'Free';
-
-      card.innerHTML = `
-        <img class="thumb" src="${escapeHtml(thumb)}" alt="" />
-        <div class="meta">
-          <h3 class="title">${escapeHtml(title)}</h3>
-          <div class="small" style="margin-top:6px">
-            <span class="badge">${escapeHtml(cat)}</span>
-            <span class="badge">${escapeHtml(start)}</span>
-            <span class="badge">${escapeHtml(paidTag)}</span>
-          </div>
-          <div style="margin-top:8px" class="small">₹${escapeHtml(price)}</div>
-        </div>
-      `;
-      // click -> subjects page (pass course_id and token & userid if present)
-      card.addEventListener('click', ()=>{
-        const id = it.id || it.course_id || it.courseid || '';
-        const token = localStorage.getItem(tokenKey) || '';
-        const userid = localStorage.getItem(uidKey) || '';
-        const params = new URLSearchParams();
-        if(id) params.set('course_id', id);
-        if(token) params.set('token', token);
-        if(userid) params.set('userid', userid);
-        window.location.href = 'subjects.html?' + params.toString();
+    // Fill tables
+    function renderNotices(){
+      const tbody = document.querySelector('#noticeTable tbody'); tbody.innerHTML='';
+      sampleNotices.forEach((n,i)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML=`<td>${n.date}</td><td>${n.title}</td><td><button onclick="deleteNotice(${i})">Delete</button></td>`;
+        tbody.appendChild(tr);
       });
-
-      grid.appendChild(card);
-    });
-  }
-
-  function applyFilters(){
-    const qv = (q.value||'').toLowerCase().trim();
-    const catv = category.value;
-    const paidv = paid.value;
-    const out = data.filter(it => {
-      if(catv){
-        const c = (it.exam_category || it.exam_name || '').trim();
-        if(c !== catv) return false;
-      }
-      if(paidv){
-        const p = isPaid(it) ? 'paid' : 'free';
-        if(p !== paidv) return false;
-      }
-      if(!qv) return true;
-      const hay = (it.course_name||'') + ' ' + (it.course_slug||'') + ' ' + (it.course_description||'');
-      return hay.toLowerCase().includes(qv);
-    });
-    render(out);
-    showStatus(`${out.length} shown`);
-  }
-
-  q.addEventListener('input', ()=>applyFilters());
-  category.addEventListener('change', ()=>applyFilters());
-  paid.addEventListener('change', ()=>applyFilters());
-  refresh.addEventListener('click', ()=>fetchData());
-
-  async function fetchData(){
-    showStatus('Loading...');
-    try{
-      const res = await fetch(API, {cache:'no-cache'});
-      if(!res.ok) throw new Error('Network error '+res.status);
-      const json = await res.json();
-      // if returned object wraps array, find first array
-      data = Array.isArray(json) ? json : (Array.isArray(json.data) ? json.data : (Array.isArray(json.courses) ? json.courses : []));
-      if(!data.length) {
-        // fallback try to find array inside object
-        for(const k in json) if(Array.isArray(json[k])) { data = json[k]; break; }
-      }
-      buildCategories(data);
-      applyFilters();
-      showStatus(`Loaded ${data.length}`);
-    }catch(err){
-      console.error(err);
-      data = [];
-      render([]);
-      showStatus('Failed to fetch API. Check console / CORS.');
-      alert('Error fetching batches. See console.');
     }
-  }
+    function addNotice(){
+      const t = document.getElementById('noticeTitle'); if(!t.value) return alert('Enter title');
+      sampleNotices.unshift({date:new Date().toISOString().slice(0,10),title:t.value}); t.value=''; renderNotices();
+    }
+    function deleteNotice(i){ sampleNotices.splice(i,1); renderNotices(); }
+    function clearNotices(){ sampleNotices.length=0; renderNotices(); }
 
-  // initial
-  fetchData();
-})();
-</script>
+    function renderResidents(){
+      const tbody = document.querySelector('#resTable tbody'); tbody.innerHTML='';
+      sampleResidents.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${r.name}</td><td>${r.flat}</td><td>${r.phone}</td>`;tbody.appendChild(tr);});
+    }
+
+    // Complaints stored to localStorage for demo
+    function submitComplaint(e){ e.preventDefault(); const name=document.getElementById('cname').value,flat=document.getElementById('cflat').value,desc=document.getElementById('cdesc').value; const arr = JSON.parse(localStorage.getItem('complaints')||'[]'); arr.unshift({name,flat,desc,date:new Date().toISOString()}); localStorage.setItem('complaints',JSON.stringify(arr)); document.getElementById('cname').value='';document.getElementById('cflat').value='';document.getElementById('cdesc').value=''; renderComplaints(); }
+    function renderComplaints(){ const el=document.getElementById('complaintsList'); const arr=JSON.parse(localStorage.getItem('complaints')||'[]'); if(!arr.length){el.innerHTML='<div class="small">No complaints (demo)</div>';return;} el.innerHTML=''; arr.forEach(c=>{const d=document.createElement('div');d.className='card';d.style.marginBottom='8px';d.innerHTML=`<div class="small">${new Date(c.date).toLocaleString()}</div><strong>${c.name} — ${c.flat}</strong><div class="small">${c.desc}</div>`;el.appendChild(d);}); }
+
+    // Admin modal
+    document.getElementById('loginBtn').addEventListener('click',()=>document.getElementById('adminModal').style.display='flex');
+    function closeModal(){document.getElementById('adminModal').style.display='none'}
+    function demoLogin(){ // demo only — do server-side auth in production
+      const u=document.getElementById('adminUser').value, p=document.getElementById('adminPass').value; if(u==='admin'&&p==='admin123'){ alert('Demo login OK — you are admin in demo.'); closeModal(); } else alert('Demo credentials: admin / admin123'); }
+
+    // Simple proxy/embedding checks (client-side heuristics only)
+    function runProxyChecks(){
+      const checks=[];
+      try{
+        // 1) Are we embedded in an iframe?
+        checks.push({name:'Embedding',ok: window.top===window.self,detail: window.top===window.self? 'Not embedded':'Page is inside an iframe (possible proxy/embed)'});
+        // 2) Is hostname expected?
+        checks.push({name:'Hostname',ok: location.hostname===expectedHost,detail: 'Current host: '+location.hostname});
+        // 3) Any suspicious referrer?
+        const ref=document.referrer||'none'; checks.push({name:'Referrer',ok: ref==='none' || ref.includes(location.hostname), detail:'Referrer: '+ref});
+      }catch(e){checks.push({name:'JS Error',ok:false,detail:e.message})}
+
+      const el=document.getElementById('proxyChecks'); el.innerHTML=''; checks.forEach(c=>{ const div=document.createElement('div'); div.innerHTML=`<strong>${c.name}:</strong> ${c.ok?'<span style="color:green">OK</span>':'<span style="color:crimson">Problem</span>'} <div class="small">${c.detail}</div>`; el.appendChild(div); });
+    }
+
+    document.getElementById('takeAction').addEventListener('click',()=>{
+      alert('Server-side recommendations:\n1) Validate Host header and block unknown hosts.\n2) Use HSTS and valid TLS certs.\n3) Add CSP and X-Frame-Options: DENY.\n4) Add rate-limiting and IP reputation checks.');
+    })
+
+    // Prevent clickjacking (client-exit if embedded; server must set X-Frame-Options)
+    if(window.top!==window.self){ window.top.location = window.location; }
+
+    // Init
+    renderNotices(); renderResidents(); renderComplaints(); runProxyChecks();
+
+    // Helpful console note for admin
+    console.log('Demo: replace expectedHost variable with your real domain and deploy server-side checks (Host header verification, X-Frame-Options, HSTS, TLS).');
+  </script>
 </body>
-  </html>
+                                                                      </html>
