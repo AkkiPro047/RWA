@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>RWA — Batches</title>
+<style>
+  :root{--bg:#071428;--card:#0b1b2a;--muted:#9fb0c8;--accent:#6d28d9;color:#e6f0fb;font-family:Inter,system-ui,Arial}
+  body{margin:0;background:linear-gradient(180deg,#04102a,#071428);min-height:100vh;padding:22px;color:var(--muted)}
+  .wrap{max-width:1100px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:800}
+  h1{margin:0;color:#e6f7ff}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  input,select,button{padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  .btn{background:linear-gradient(90deg,#34d399,#06b6d4);border:0;color:#04242b;font-weight:700;cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+  @media(max-width:960px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);padding:12px;border-radius:12px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;border:1px solid rgba(255,255,255,0.03)}
+  .thumb{width:120px;height:72px;border-radius:8px;object-fit:cover;background:#021427}
+  .meta{flex:1}
+  .title{font-weight:700;color:#e9f1ff;margin:0 0 6px 0}
+  .small{color:var(--muted);font-size:13px}
+  .badge{background:rgba(255,255,255,0.03);padding:6px;border-radius:8px;color:var(--muted);font-size:12px;margin-right:6px}
+  .topbar{display:flex;gap:8px;align-items:center}
+  .tokenBox{display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="logo">R</div>
+        <div>
+          <h1>RWA — Batches</h1>
+          <div class="small">Loads courses from rwa-batches-api.vercel.app</div>
+        </div>
+      </div>
+
+      <div class="topbar">
+        <div class="tokenBox small">
+          Token: <input id="tokenInput" placeholder="Paste token (optional)" style="min-width:180px"/>
+          UserID: <input id="useridInput" placeholder="userid (optional)" style="min-width:90px"/>
+          <button id="saveCred" class="btn">Save</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="controls">
+      <input id="q" placeholder="Search by name, category..." style="min-width:260px"/>
+      <select id="category"><option value="">All categories</option></select>
+      <select id="paid"><option value="">All</option><option value="paid">Paid</option><option value="free">Free</option></select>
+      <button id="refresh" class="btn">Refresh</button>
+      <div id="status" class="small" style="margin-left:auto"></div>
+    </div>
+
+    <main>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="small" style="display:none;margin-top:18px">No batches found.</div>
+    </main>
+  </div>
+
+<script>
+(() => {
+  const API = "https://rwa-batches-api.vercel.app/";
+  const tokenKey = 'rwa_token', uidKey='rwa_userid';
+
+  const tokenInput = document.getElementById('tokenInput');
+  const useridInput = document.getElementById('useridInput');
+  const saveBtn = document.getElementById('saveCred');
+
+  // prefill from localStorage
+  tokenInput.value = localStorage.getItem(tokenKey) || '';
+  useridInput.value = localStorage.getItem(uidKey) || '';
+
+  saveBtn.addEventListener('click', ()=>{
+    localStorage.setItem(tokenKey, tokenInput.value.trim());
+    localStorage.setItem(uidKey, useridInput.value.trim());
+    alert('Saved token/userid to localStorage.');
+  });
+
+  const q = document.getElementById('q');
+  const category = document.getElementById('category');
+  const paid = document.getElementById('paid');
+  const refresh = document.getElementById('refresh');
+  const grid = document.getElementById('grid');
+  const status = document.getElementById('status');
+  const empty = document.getElementById('empty');
+
+  let data = [];
+
+  function showStatus(t){ status.textContent = t || ''; }
+
+  function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+
+  function isPaid(item){
+    const p = Number(item.price || 0);
+    if(item.is_paid !== undefined) {
+      // could be "1" or numeric
+      return String(item.is_paid) === "1" || p>0;
+    }
+    return p>0;
+  }
+
+  function buildCategories(items){
+    const set = new Set();
+    items.forEach(it => {
+      const c = (it.exam_category || it.exam_name || '').trim();
+      if(c) set.add(c);
+    });
+    // clear and add
+    category.innerHTML = '<option value="">All categories</option>';
+    Array.from(set).sort().forEach(v=>{
+      const o = document.createElement('option'); o.value = v; o.textContent = v; category.appendChild(o);
+    });
+  }
+
+  function render(items){
+    grid.innerHTML = '';
+    if(!items.length){ empty.style.display='block'; return;} else empty.style.display='none';
+    items.forEach(it=>{
+      const card = document.createElement('article'); card.className = 'card';
+      const thumb = it.course_thumbnail || it.course_image || it.course_logo || 'https://placehold.co/560x360?text=No+Image';
+      const title = it.course_name || it.title || 'Untitled';
+      const cat = it.exam_category || it.exam_name || '';
+      const start = it.start_date || '';
+      const price = it.price || '0';
+      const paidTag = isPaid(it) ? 'Paid' : 'Free';
+
+      card.innerHTML = `
+        <img class="thumb" src="${escapeHtml(thumb)}" alt="" />
+        <div class="meta">
+          <h3 class="title">${escapeHtml(title)}</h3>
+          <div class="small" style="margin-top:6px">
+            <span class="badge">${escapeHtml(cat)}</span>
+            <span class="badge">${escapeHtml(start)}</span>
+            <span class="badge">${escapeHtml(paidTag)}</span>
+          </div>
+          <div style="margin-top:8px" class="small">₹${escapeHtml(price)}</div>
+        </div>
+      `;
+      // click -> subjects page (pass course_id and token & userid if present)
+      card.addEventListener('click', ()=>{
+        const id = it.id || it.course_id || it.courseid || '';
+        const token = localStorage.getItem(tokenKey) || '';
+        const userid = localStorage.getItem(uidKey) || '';
+        const params = new URLSearchParams();
+        if(id) params.set('course_id', id);
+        if(token) params.set('token', token);
+        if(userid) params.set('userid', userid);
+        window.location.href = 'subjects.html?' + params.toString();
+      });
+
+      grid.appendChild(card);
+    });
+  }
+
+  function applyFilters(){
+    const qv = (q.value||'').toLowerCase().trim();
+    const catv = category.value;
+    const paidv = paid.value;
+    const out = data.filter(it => {
+      if(catv){
+        const c = (it.exam_category || it.exam_name || '').trim();
+        if(c !== catv) return false;
+      }
+      if(paidv){
+        const p = isPaid(it) ? 'paid' : 'free';
+        if(p !== paidv) return false;
+      }
+      if(!qv) return true;
+      const hay = (it.course_name||'') + ' ' + (it.course_slug||'') + ' ' + (it.course_description||'');
+      return hay.toLowerCase().includes(qv);
+    });
+    render(out);
+    showStatus(`${out.length} shown`);
+  }
+
+  q.addEventListener('input', ()=>applyFilters());
+  category.addEventListener('change', ()=>applyFilters());
+  paid.addEventListener('change', ()=>applyFilters());
+  refresh.addEventListener('click', ()=>fetchData());
+
+  async function fetchData(){
+    showStatus('Loading...');
+    try{
+      const res = await fetch(API, {cache:'no-cache'});
+      if(!res.ok) throw new Error('Network error '+res.status);
+      const json = await res.json();
+      // if returned object wraps array, find first array
+      data = Array.isArray(json) ? json : (Array.isArray(json.data) ? json.data : (Array.isArray(json.courses) ? json.courses : []));
+      if(!data.length) {
+        // fallback try to find array inside object
+        for(const k in json) if(Array.isArray(json[k])) { data = json[k]; break; }
+      }
+      buildCategories(data);
+      applyFilters();
+      showStatus(`Loaded ${data.length}`);
+    }catch(err){
+      console.error(err);
+      data = [];
+      render([]);
+      showStatus('Failed to fetch API. Check console / CORS.');
+      alert('Error fetching batches. See console.');
+    }
+  }
+
+  // initial
+  fetchData();
+})();
+</script>
+</body>
+  </html>
